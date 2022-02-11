@@ -5,6 +5,7 @@
  * Tabsize: 4
  * Copyright: (c) 2005 by OBJECTIVE DEVELOPMENT Software GmbH
  * License: GNU GPL v2 (see License.txt), GNU GPL v3 or proprietary (CommercialLicense.txt)
+ * This Revision: $Id: usbconfig-prototype.h 740 2009-04-13 18:23:31Z cs $
  */
 
 #ifndef __usbconfig_h_included__
@@ -18,6 +19,9 @@ also hardware interrupt 0 on many devices) and USB D- to Port D bit 4. You may
 wire the lines to any other port, as long as D+ is also wired to INT0 (or any
 other hardware interrupt, as long as it is the highest level interrupt, see
 section at the end of this file).
++ To create your own usbconfig.h file, copy this file to your project's
++ firmware source directory) and rename it to "usbconfig.h".
++ Then edit it accordingly.
 */
 
 /* ---------------------------- Hardware Config ---------------------------- */
@@ -41,12 +45,10 @@ section at the end of this file).
  */
 #define USB_CFG_CLOCK_KHZ       (F_CPU/1000)
 /* Clock rate of the AVR in kHz. Legal values are 12000, 12800, 15000, 16000,
- * 16500, 18000 and 20000. The 12.8 MHz and 16.5 MHz versions of the code
- * require no crystal, they tolerate +/- 1% deviation from the nominal
- * frequency. All other rates require a precision of 2000 ppm and thus a
- * crystal!
- * Since F_CPU should be defined to your actual clock rate anyway, you should
- * not need to modify this setting.
+ * 16500 and 20000. The 12.8 MHz and 16.5 MHz versions of the code require no
+ * crystal, they tolerate +/- 1% deviation from the nominal frequency. All
+ * other rates require a precision of 2000 ppm and thus a crystal!
+ * Default if not specified: 12 MHz
  */
 #define USB_CFG_CHECK_CRC       0
 /* Define this to 1 if you want that the driver checks integrity of incoming
@@ -76,7 +78,7 @@ section at the end of this file).
  * default control endpoint 0 and an interrupt-in endpoint (any other endpoint
  * number).
  */
-#define USB_CFG_HAVE_INTRIN_ENDPOINT3   0
+#define USB_CFG_HAVE_INTRIN_ENDPOINT3   1
 /* Define this to 1 if you want to compile a version with three endpoints: The
  * default control endpoint 0, an interrupt-in endpoint 3 (or the number
  * configured below) and a catch-all default interrupt-in endpoint as above.
@@ -106,7 +108,7 @@ section at the end of this file).
  * (e.g. HID), but never want to send any data. This option saves a couple
  * of bytes in flash memory and the transmit buffers in RAM.
  */
-#define USB_CFG_INTR_POLL_INTERVAL      100
+#define USB_CFG_INTR_POLL_INTERVAL      255
 /* If you compile a version with endpoint 1 (interrupt-in), this is the poll
  * interval. The value is in milliseconds and must not be less than 10 ms for
  * low speed devices.
@@ -115,29 +117,29 @@ section at the end of this file).
 /* Define this to 1 if the device has its own power supply. Set it to 0 if the
  * device is powered from the USB bus.
  */
-#define USB_CFG_MAX_BUS_POWER           50
+#define USB_CFG_MAX_BUS_POWER           500
 /* Set this variable to the maximum USB bus power consumption of your device.
  * The value is in milliamperes. [It will be divided by two since USB
  * communicates power requirements in units of 2 mA.]
  */
-#define USB_CFG_IMPLEMENT_FN_WRITE      0
+#define USB_CFG_IMPLEMENT_FN_WRITE      1
 /* Set this to 1 if you want usbFunctionWrite() to be called for control-out
  * transfers. Set it to 0 if you don't need it and want to save a couple of
  * bytes.
  */
-#define USB_CFG_IMPLEMENT_FN_READ       0
+#define USB_CFG_IMPLEMENT_FN_READ       1
 /* Set this to 1 if you need to send control replies which are generated
  * "on the fly" when usbFunctionRead() is called. If you only want to send
  * data from a static buffer, set it to 0 and return the data from
  * usbFunctionSetup(). This saves a couple of bytes.
  */
-#define USB_CFG_IMPLEMENT_FN_WRITEOUT   0
+#define USB_CFG_IMPLEMENT_FN_WRITEOUT   1
 /* Define this to 1 if you want to use interrupt-out (or bulk out) endpoints.
  * You must implement the function usbFunctionWriteOut() which receives all
  * interrupt/bulk data sent to any endpoint other than 0. The endpoint number
  * can be found in 'usbRxToken'.
  */
-#define USB_CFG_HAVE_FLOWCONTROL        0
+#define USB_CFG_HAVE_FLOWCONTROL        1
 /* Define this to 1 if you want flowcontrol over USB data. See the definition
  * of the macros usbDisableAllRequests() and usbEnableAllRequests() in
  * usbdrv.h.
@@ -200,64 +202,53 @@ section at the end of this file).
  * usbFunctionWrite(). Use the global usbCurrentDataToken and a static variable
  * for each control- and out-endpoint to check for duplicate packets.
  */
+#if USB_CFG_CLOCK_KHZ==16500
+#define USB_CFG_HAVE_MEASURE_FRAME_LENGTH   1
+/*#include "osccal.h"*/
+#else
 #define USB_CFG_HAVE_MEASURE_FRAME_LENGTH   0
+#endif
 /* define this macro to 1 if you want the function usbMeasureFrameLength()
  * compiled in. This function can be used to calibrate the AVR's RC oscillator.
- */
-#define USB_USE_FAST_CRC                0
-/* The assembler module has two implementations for the CRC algorithm. One is
- * faster, the other is smaller. This CRC routine is only used for transmitted
- * messages where timing is not critical. The faster routine needs 31 cycles
- * per byte while the smaller one needs 61 to 69 cycles. The faster routine
- * may be worth the 32 bytes bigger code size if you transmit lots of data and
- * run the AVR close to its limit.
  */
 
 /* -------------------------- Device Description --------------------------- */
 
-#define  USB_CFG_VENDOR_ID       0xc0, 0x16 /* = 0x16c0 = 5824 = voti.nl */
+#define  USB_CFG_VENDOR_ID       0xc0, 0x16
 /* USB vendor ID for the device, low byte first. If you have registered your
- * own Vendor ID, define it here. Otherwise you may use one of obdev's free
- * shared VID/PID pairs. Be sure to read USB-IDs-for-free.txt for rules!
- * *** IMPORTANT NOTE ***
- * This template uses obdev's shared VID/PID pair for Vendor Class devices
- * with libusb: 0x16c0/0x5dc.  Use this VID/PID pair ONLY if you understand
- * the implications!
+ * own Vendor ID, define it here. Otherwise you use one of obdev's free shared
+ * VID/PID pairs. Be sure to read USBID-License.txt for rules!
+ * + This template uses obdev's shared VID/PID pair: 0x16c0/0x5dc.
+ * + Use this VID/PID pair ONLY if you understand the implications!
  */
-#define  USB_CFG_DEVICE_ID       0xda, 0x27 /* VOTI's lab use PID */
+#define  USB_CFG_DEVICE_ID       0xda, 0x27
 /* This is the ID of the product, low byte first. It is interpreted in the
  * scope of the vendor ID. If you have registered your own VID with usb.org
  * or if you have licensed a PID from somebody else, define it here. Otherwise
- * you may use one of obdev's free shared VID/PID pairs. See the file
- * USB-IDs-for-free.txt for details!
- * *** IMPORTANT NOTE ***
- * This template uses obdev's shared VID/PID pair for Vendor Class devices
- * with libusb: 0x16c0/0x5dc.  Use this VID/PID pair ONLY if you understand
- * the implications!
+ * you use obdev's free shared VID/PID pair. Be sure to read the rules in
+ * USBID-License.txt!
+ * + This template uses obdev's shared VID/PID pair: 0x16c0/0x5dc.
+ * + Use this VID/PID pair ONLY if you understand the implications!
  */
 #define USB_CFG_DEVICE_VERSION  0x00, 0x01
 /* Version number of the device: Minor number first, then major number.
  */
 #define USB_CFG_VENDOR_NAME     't', 'i', 'c', 'k', 'e', 'l', 't', 'o', 'n', '@', 'g', 'm', 'a', 'i', 'l', '.', 'c', 'o', 'm'
 #define USB_CFG_VENDOR_NAME_LEN 19
-//#define USB_CFG_VENDOR_NAME     'o', 'b', 'd', 'e', 'v', '.', 'a', 't'
-//#define USB_CFG_VENDOR_NAME_LEN 8
 /* These two values define the vendor name returned by the USB device. The name
  * must be given as a list of characters under single quotes. The characters
  * are interpreted as Unicode (UTF-16) entities.
  * If you don't want a vendor name string, undefine these macros.
  * ALWAYS define a vendor name containing your Internet domain name if you use
- * obdev's free shared VID/PID pair. See the file USB-IDs-for-free.txt for
+ * obdev's free shared VID/PID pair. See the file USBID-License.txt for
  * details.
  */
-#define USB_CFG_DEVICE_NAME     'S', 'o', 'l', 'd', 'e', 'r', 'i', 'n', 'g'
-#define USB_CFG_DEVICE_NAME_LEN 9
+#define USB_CFG_DEVICE_NAME     'S', 'o', 'l', 'd', 'e', 'r', 'i', 'n', 'g', 'I', 'r', 'o', 'n'
+#define USB_CFG_DEVICE_NAME_LEN 13
 /* Same as above for the device name. If you don't want a device name, undefine
- * the macros. See the file USB-IDs-for-free.txt before you assign a name if
- * you use a shared VID/PID.
+ * the macros. See the file USBID-License.txt before you assign a name if you
+ * use a shared VID/PID.
  */
-#define USB_CFG_SERIAL_NUMBER   't', 'i', 'c', 'k', 'e', 'l', 't', 'o', 'n', '@', 'g', 'm', 'a', 'i', 'l', '.', 'c', 'o', 'm', ':', '0', '0', '0', '1'
-#define USB_CFG_SERIAL_NUMBER_LEN   24
 /*#define USB_CFG_SERIAL_NUMBER   'N', 'o', 'n', 'e' */
 /*#define USB_CFG_SERIAL_NUMBER_LEN   0 */
 /* Same as above for the serial number. If you don't want a serial number,
@@ -267,20 +258,20 @@ section at the end of this file).
  * to fine tune control over USB descriptors such as the string descriptor
  * for the serial number.
  */
-#define USB_CFG_DEVICE_CLASS        0
+#define USB_CFG_DEVICE_CLASS        2    /* set to 0 if deferred to interface */
 #define USB_CFG_DEVICE_SUBCLASS     0
 /* See USB specification if you want to conform to an existing device class.
  * Class 0xff is "vendor specific".
  */
-#define USB_CFG_INTERFACE_CLASS     3
-#define USB_CFG_INTERFACE_SUBCLASS  0
-#define USB_CFG_INTERFACE_PROTOCOL  0
+#define USB_CFG_INTERFACE_CLASS     2       /* CDC class */
+#define USB_CFG_INTERFACE_SUBCLASS  2       /* Abstract (Modem) */
+#define USB_CFG_INTERFACE_PROTOCOL  1       /* AT-Commands */
 /* See USB specification if you want to conform to an existing device class or
  * protocol. The following classes must be set at interface level:
  * HID class is 3, no subclass and protocol required (but may be useful!)
  * CDC class is 2, use subclass 2 and protocol 1 for ACM
  */
-#define USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH    52
+/* #define USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH    42 */
 /* Define this to the length of the HID report descriptor, if you implement
  * an HID device. Otherwise don't define it or define it to 0.
  * If you use this define, you must add a PROGMEM character array named
@@ -346,7 +337,7 @@ section at the end of this file).
  */
 
 #define USB_CFG_DESCR_PROPS_DEVICE                  0
-#define USB_CFG_DESCR_PROPS_CONFIGURATION           0
+#define USB_CFG_DESCR_PROPS_CONFIGURATION           USB_PROP_IS_DYNAMIC
 #define USB_CFG_DESCR_PROPS_STRINGS                 0
 #define USB_CFG_DESCR_PROPS_STRING_0                0
 #define USB_CFG_DESCR_PROPS_STRING_VENDOR           0
@@ -355,15 +346,6 @@ section at the end of this file).
 #define USB_CFG_DESCR_PROPS_HID                     0
 #define USB_CFG_DESCR_PROPS_HID_REPORT              0
 #define USB_CFG_DESCR_PROPS_UNKNOWN                 0
-
-
-//#define usbMsgPtr_t unsigned short
-/* If usbMsgPtr_t is not defined, it defaults to 'uchar *'. We may define it to
- * a scalar type here because gcc generates slightly shorter code for scalar
- * arithmetics than for pointer arithmetics. Remove this define for backward
- * type compatibility or define it to an 8 bit type if you use data in RAM only
- * and all RAM is below 256 bytes (tiny memory model in IAR CC).
- */
 
 /* ----------------------- Optional MCU Description ------------------------ */
 
@@ -380,6 +362,11 @@ section at the end of this file).
 /* #define USB_INTR_ENABLE_BIT     INT0 */
 /* #define USB_INTR_PENDING        GIFR */
 /* #define USB_INTR_PENDING_BIT    INTF0 */
-/* #define USB_INTR_VECTOR         INT0_vect */
+/* #define USB_INTR_VECTOR         SIG_INTERRUPT0 */
+#define USB_INTR_CFG            PCMSK
+#define USB_INTR_CFG_SET        (1<<USB_CFG_DPLUS_BIT)
+#define USB_INTR_ENABLE_BIT     PCIE
+#define USB_INTR_PENDING_BIT    PCIF
+#define USB_INTR_VECTOR         SIG_PIN_CHANGE
 
 #endif /* __usbconfig_h_included__ */
