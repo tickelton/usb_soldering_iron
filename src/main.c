@@ -23,15 +23,29 @@
 #define FET_OFF(mask)   (PORTB |= (uint8_t)(1 << mask))
 #define FET_ON(mask)   (PORTB &= (uint8_t)~(1 << mask))
 
-/* TODO: IO init
-DDRB |= (1 << LED1 | 1 << MOSFET);
-DDRB &= ~(1 << DD_BUTTON);
-PORTB |= (1 << PORT_BUTTON);
+void ioInit(void)
+{
+  DDRB |= (1 << LED1 | 1 << MOSFET);
+  DDRB &= ~(1 << DD_BUTTON);
+  PORTB |= (1 << PORT_BUTTON);
+  
+  LED_OFF(LED1);
+  FET_OFF(MOSFET);
+}
 
-LED_OFF(LED1);
-FET_OFF(MOSFET);
-*/
+uint8_t compare_value = 127;
+uint8_t timer_counter = 0;
 
+ISR( TIMER0_OVF_vect )
+{
+  if (timer_counter == 0) {
+    LED_ON(LED1);
+  } else if (timer_counter == compare_value) {
+    LED_OFF(LED1);
+  }
+
+  ++timer_counter;
+}
 
 int main(void)
 {
@@ -47,6 +61,13 @@ int main(void)
     rcnt    = 0;
     twcnt   = 0;
     trcnt   = 0;
+
+
+TCCR0A = 0;
+TCCR0B = ( 1 << CS02 );
+TIMSK = ( 1 << TOIE0 );
+
+
 
     sei();
     for(;;){    /* main event loop */
