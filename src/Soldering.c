@@ -1,13 +1,10 @@
-
-/* Name: main.c
- * Project: AVR USB driver for CDC interface on Low-Speed USB
- *          - Simple peripheral controller
- * Author: Osamu Tamura
- * Creation Date: 2007-05-12
- * Tabsize: 4
+/*
+ * Authors: Osamu Tamura, tickelton@gmail.com
+ * Licenses: AVR-CDC/CDC-IO: Proprietary, free under certain conditions. See License_CDC-IO.txt.
+ *           usbdrv: GNU GPL version 2 or the GNU GPL version 3.
+ *           everything else: GNU GPL version 2. See License.txt.
  * Copyright: (c) 2007 by Recursion Co., Ltd.
- * License: Proprietary, free under certain conditions. See Documentation.
- *
+ *            (c) 2021 tickelton@gmail.com
  */
 
 #include <string.h>
@@ -20,9 +17,20 @@
 #include "usbdrv.h"
 #include "oddebug.h"
 
-#define INTERRUPT_REPORT    1
 
 #define CMD_WHO     "cdc-io"
+
+#define LED1 PB4
+#define MOSFET PB1
+#define PIN_BUTTON PINB3
+#define PORT_BUTTON PB3
+#define DD_BUTTON DDB3
+
+#define LED_OFF(mask)   (PORTB |= (uint8_t)(1 << mask))
+#define LED_ON(mask)   (PORTB &= (uint8_t)~(1 << mask))
+
+#define FET_OFF(mask)   (PORTB |= (uint8_t)(1 << mask))
+#define FET_ON(mask)   (PORTB &= (uint8_t)~(1 << mask))
 
 
 enum {
@@ -46,11 +54,7 @@ static const PROGMEM char configDescrCDC[] = {   /* USB configuration descriptor
     2,          /* number of interfaces in this configuration */
     1,          /* index of this configuration */
     0,          /* configuration name string index */
-#if USB_CFG_IS_SELF_POWERED
-    USBATTR_SELFPOWER,  /* attributes */
-#else
     USBATTR_BUSPOWER,   /* attributes */
-#endif
     USB_CFG_MAX_BUS_POWER/2,            /* max USB current in 2mA units */
 
     /* interface descriptor follows inline: */
@@ -155,7 +159,6 @@ usbRequest_t    *rq = (void *)data;
         /*    GET_LINE_CODING -> usbFunctionRead()    */
         /*    SET_LINE_CODING -> usbFunctionWrite()    */
         }
-#if USB_CFG_HAVE_INTRIN_ENDPOINT3
         if(rq->bRequest == SET_CONTROL_LINE_STATE){
             /* Report serial state (carrier detect). On several Unix platforms,
              * tty devices can only be opened when carrier detect is set.
@@ -163,12 +166,9 @@ usbRequest_t    *rq = (void *)data;
             if( intr3Status==0 )
                 intr3Status = 2;
         }
-#endif
-#if 1
         /*  Prepare bulk-in endpoint to respond to early termination   */
         if((rq->bmRequestType & USBRQ_DIR_MASK) == USBRQ_DIR_HOST_TO_DEVICE)
             sendEmptyFrame  = 1;
-#endif
     }
 
     return 0;
@@ -314,11 +314,7 @@ void usbFunctionWriteOut( uchar *data, uchar len )
         if( rcnt>=4 ) {
             val2    = val;
             val    = tos;
-#if defined (__AVR_ATmega8__) || defined (__AVR_ATmega16__) || !defined PORTC
             tos    = 0x30 + ( 'D' - rbuf[--rcnt] ) * 3;
-#else
-            tos    = 0x20 + ( rbuf[--rcnt] - 'A' ) * 3;
-#endif
             rbuf[rcnt]    = 0;
             if( !strcmp_P(rbuf,PSTR("PIN")) )
                 tos    += 0;
@@ -336,50 +332,26 @@ void usbFunctionWriteOut( uchar *data, uchar len )
 }
 
 
-#if INTERRUPT_REPORT
 
 static uchar   intr_flag[4];
 
 #define INTR_REG(x)     { intr_flag[x>>3] |= 1<<(x&7); }
 
-#if _AVR_IOTNx61_H_
-#define INTR_MIN    3
-#define INTR_MAX    19
-    ISR( PCINT_vect )           INTR_REG(3)
-    ISR( TIMER1_COMPA_vect )    INTR_REG(4)
-    ISR( TIMER1_COMPB_vect )    INTR_REG(5)
-    ISR( TIMER1_OVF_vect )      INTR_REG(6)
-    ISR( TIMER0_OVF_vect )      INTR_REG(7)
-    ISR( USI_START_vect )       INTR_REG(8)
-    ISR( USI_OVF_vect )         INTR_REG(9)
-    ISR( EE_RDY_vect )          INTR_REG(10)
-    ISR( ANA_COMP_vect )        INTR_REG(11)
-    ISR( ADC_vect )             INTR_REG(12)
-    ISR( WDT_vect )             INTR_REG(13)
-    ISR( INT1_vect )            INTR_REG(14)
-    ISR( TIMER0_COMPA_vect )    INTR_REG(15)
-    ISR( TIMER0_COMPB_vect )    INTR_REG(16)
-    ISR( TIMER0_CAPT_vect )     INTR_REG(17)
-    ISR( TIMER1_COMPD_vect )    INTR_REG(18)
-    ISR( FAULT_PROTECTION_vect )    INTR_REG(19)
-#endif
-#if _AVR_IOTNX5_H_
 #define INTR_MIN    2
 #define INTR_MAX    15
-    ISR( INT0_vect )            INTR_REG(2)
-    ISR( TIMER1_COMPA_vect )    INTR_REG(4)
-    ISR( TIMER1_OVF_vect )      INTR_REG(5)
-    ISR( TIMER0_OVF_vect )      INTR_REG(6)
-    ISR( EE_RDY_vect )          INTR_REG(7)
-    ISR( ANA_COMP_vect )        INTR_REG(8)
-    ISR( ADC_vect )             INTR_REG(9)
-    ISR( TIMER1_COMPB_vect )    INTR_REG(10)
-    ISR( TIMER0_COMPA_vect )    INTR_REG(11)
-    ISR( TIMER0_COMPB_vect )    INTR_REG(12)
-    ISR( WDT_vect )             INTR_REG(13)
-    ISR( USI_START_vect )       INTR_REG(14)
-    ISR( USI_OVF_vect )         INTR_REG(15)
-#endif
+ISR( INT0_vect )            INTR_REG(2)
+ISR( TIMER1_COMPA_vect )    INTR_REG(4)
+ISR( TIMER1_OVF_vect )      INTR_REG(5)
+ISR( TIMER0_OVF_vect )      INTR_REG(6)
+ISR( EE_RDY_vect )          INTR_REG(7)
+ISR( ANA_COMP_vect )        INTR_REG(8)
+ISR( ADC_vect )             INTR_REG(9)
+ISR( TIMER1_COMPB_vect )    INTR_REG(10)
+ISR( TIMER0_COMPA_vect )    INTR_REG(11)
+ISR( TIMER0_COMPB_vect )    INTR_REG(12)
+ISR( WDT_vect )             INTR_REG(13)
+ISR( USI_START_vect )       INTR_REG(14)
+ISR( USI_OVF_vect )         INTR_REG(15)
 
 static void report_interrupt(void)
 {
@@ -403,33 +375,30 @@ uchar    i, j;
         }
     }
 }
-#endif
 
 
 static void hardwareInit(void)
 {
-uchar    i;
+    uchar    i;
 
     /* activate pull-ups except on USB lines */
     USB_CFG_IOPORT   = (uchar)~((1<<USB_CFG_DMINUS_BIT)|(1<<USB_CFG_DPLUS_BIT));
     /* all pins input except USB (-> USB reset) */
-#ifdef USB_CFG_PULLUP_IOPORT    /* use usbDeviceConnect()/usbDeviceDisconnect() if available */
-    USBDDR    = 0;    /* we do RESET by deactivating pullup */
-    usbDeviceDisconnect();
-#else
     USBDDR    = (1<<USB_CFG_DMINUS_BIT)|(1<<USB_CFG_DPLUS_BIT);
-#endif
 
     for(i=0;i<20;i++){  /* 300 ms disconnect */
         wdt_reset();
             _delay_ms(15);
     }
 
-#ifdef USB_CFG_PULLUP_IOPORT
-    usbDeviceConnect();
-#else
     USBDDR    = 0;      /*  remove USB reset condition */
-#endif
+
+    DDRB |= (1 << LED1 | 1 << MOSFET);
+    DDRB &= ~(1 << DD_BUTTON);
+    PORTB |= (1 << PORT_BUTTON);
+
+    LED_OFF(LED1);
+    FET_OFF(MOSFET);
 }
 
 
@@ -469,11 +438,8 @@ int main(void)
             }
         }
 
-#if INTERRUPT_REPORT
         report_interrupt();
-#endif
 
-#if USB_CFG_HAVE_INTRIN_ENDPOINT3
         /* We need to report rx and tx carrier after open attempt */
         if(intr3Status != 0 && usbInterruptIsReady3()){
             static uchar serialStateNotification[10] = {0xa1, 0x20, 0, 0, 0, 0, 2, 0, 3, 0};
@@ -485,7 +451,6 @@ int main(void)
             }
             intr3Status--;
         }
-#endif
     }
     return 0;
 }
