@@ -1,18 +1,19 @@
-DEVICE      = attiny85
+PRJNAME    = Soldering
+DEVICE     = attiny85
 CLOCK      = 16500000
 PROGRAMMER = arduino
 TTY        = /dev/ttyUSB0
 BAUDRATE   = 19200
-OBJECTS    = Soldering.o
 USBDRV     = v-usb/usbdrv
 SRC        = src
 
 AVRDUDE = avrdude -c $(PROGRAMMER) -p $(DEVICE) -b $(BAUDRATE) -P $(TTY)
 COMPILE = avr-gcc -Wall -Os -I$(USBDRV) -I$(SRC) -DF_CPU=$(CLOCK) -mmcu=$(DEVICE)
 
-OBJECTS = usbdrv/usbdrv.o usbdrv/usbdrvasm.o usbdrv/oddebug.o $(SRC)/Soldering.o
+USBDRV_OBJECTS = usbdrv/usbdrv.o usbdrv/usbdrvasm.o usbdrv/oddebug.o
+OBJECTS = $(USBDRV_OBJECTS) $(patsubst %.c,%.o,$(wildcard $(SRC)/*.c))
 
-all: $(SRC)/Soldering.hex
+all: $(SRC)/$(PRJNAME).hex
 
 .c.o:
 	$(COMPILE) -c $< -o $@
@@ -24,33 +25,30 @@ all: $(SRC)/Soldering.hex
 	$(COMPILE) -S $< -o $@
 
 flash: all
-	$(AVRDUDE) -U flash:w:$(SRC)/Soldering.hex:i
+	$(AVRDUDE) -U flash:w:$(SRC)/$(PRJNAME).hex:i
 
 load: all
-	sudo micronucleus --run $(SRC)/Soldering.hex
+	sudo micronucleus --run $(SRC)/$(PRJNAME).hex
 
 readcal:
 	$(AVRDUDE) -U calibration:r:/dev/stdout:i | head -1
 
 clean:
-	rm -rf $(SRC)/Soldering.hex $(SRC)/Soldering.elf $(OBJECTS) usbdrv
+	rm -rf $(SRC)/$(PRJNAME).hex $(SRC)/$(PRJNAME).elf $(OBJECTS) usbdrv
 
 usbdrv:
 	cp -r $(USBDRV) usbdrv
 
-$(SRC)/Soldering.elf: $(OBJECTS)
-	$(COMPILE) -o $(SRC)/Soldering.elf $(OBJECTS)
+$(SRC)/$(PRJNAME).elf: $(OBJECTS)
+	$(COMPILE) -o $(SRC)/$(PRJNAME).elf $(OBJECTS)
 
-$(SRC)/Soldering.hex: usbdrv $(SRC)/Soldering.elf
-	rm -f $(SRC)/Soldering.hex
-	avr-objcopy -j .text -j .data -O ihex $(SRC)/Soldering.elf $(SRC)/Soldering.hex
-	avr-size --format=avr --mcu=$(DEVICE) $(SRC)/Soldering.elf
+$(SRC)/$(PRJNAME).hex: usbdrv $(SRC)/$(PRJNAME).elf
+	rm -f $(SRC)/$(PRJNAME).hex
+	avr-objcopy -j .text -j .data -O ihex $(SRC)/$(PRJNAME).elf $(SRC)/$(PRJNAME).hex
+	avr-size --format=avr --mcu=$(DEVICE) $(SRC)/$(PRJNAME).elf
 
-disasm: $(SRC)/Soldering.elf
-	avr-objdump -d $(SRC)/Soldering.elf
-
-cpp:
-	$(COMPILE) -E $(SRC)/Soldering.c
+disasm: $(SRC)/$(PRJNAME).elf
+	avr-objdump -d $(SRC)/$(PRJNAME).elf
 
 bootloader: config/micronucleus/firmware micronucleus/firmware/
 	@cp -r config/micronucleus/firmware/* micronucleus/firmware/
