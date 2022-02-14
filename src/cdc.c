@@ -300,7 +300,7 @@ static uchar   intr_flag[4];
 ISR( INT0_vect )            INTR_REG(2)
 ISR( TIMER1_COMPA_vect )    INTR_REG(4)
 ISR( TIMER1_OVF_vect )      INTR_REG(5)
-ISR( TIMER0_OVF_vect )      INTR_REG(6)
+//ISR( TIMER0_OVF_vect )      INTR_REG(6)
 ISR( EE_RDY_vect )          INTR_REG(7)
 ISR( ANA_COMP_vect )        INTR_REG(8)
 ISR( ADC_vect )             INTR_REG(9)
