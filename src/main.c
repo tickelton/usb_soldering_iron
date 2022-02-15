@@ -31,6 +31,10 @@
 
 #define DEBOUNCE_10MS (uint8_t)(int16_t)-(F_CPU / 1024 * 10e-3 + 0.5);  // timer preload for 10ms
 
+#define PWR_STEPS_LEN 4
+const uint8_t pwr_steps[PWR_STEPS_LEN] = {0, 200, 224, 255};
+uint8_t pwr_idx = 0;
+
 void ioInit(void)
 {
   DDRB |= (1 << LED1 | 1 << MOSFET);
@@ -41,20 +45,20 @@ void ioInit(void)
   FET_OFF(MOSFET);
 }
 
-uint8_t compare_value = 127;
 uint8_t timer_counter = 0;
 volatile uint8_t key_state;
 volatile uint8_t key_press;
 
 ISR( TIMER0_OVF_vect )
 {
-  /*
   if (timer_counter == 0) {
     LED_ON(LED1);
-  } else if (timer_counter == compare_value) {
-    LED_OFF(LED1);
+    FET_ON(MOSFET);
   }
-  */
+  if (timer_counter == pwr_steps[pwr_idx]) {
+    LED_OFF(LED1);
+    FET_OFF(MOSFET);
+  }
 
   ++timer_counter;
 }
@@ -164,8 +168,8 @@ TIMSK = (1<<TOIE1)|( 1 << TOIE0 );
 
 
         if( get_key_press( 1<<KEY0 )){
-          LED_TOGGLE(LED1);
-          FET_TOGGLE(MOSFET);
+          ++pwr_idx;
+          pwr_idx = pwr_idx % PWR_STEPS_LEN;
         }
 
 
