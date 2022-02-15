@@ -53,6 +53,7 @@ Session.vim
 .netrwhist
 *~
 ctags
+tags
 
 usbdrv
 Pipfile.lock
