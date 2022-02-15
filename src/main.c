@@ -1,12 +1,10 @@
-/*
- * Authors: Osamu Tamura, tickelton@gmail.com
- * Licenses: AVR-CDC/CDC-IO: Proprietary, free under certain conditions.
- *                           See License_CDC-IO.txt.
- *           usbdrv: GNU GPL version 2 or the GNU GPL version 3.
- *           everything else: GNU GPL version 2. See License.txt.
- * Copyright: (c) 2007 by Recursion Co., Ltd.
- *            (c) 2021 tickelton@gmail.com
- */
+// Authors: Osamu Tamura, tickelton@gmail.com
+// Licenses: AVR-CDC/CDC-IO: Proprietary, free under certain conditions.
+//                           See License_CDC-IO.txt.
+//           usbdrv: GNU GPL version 2 or the GNU GPL version 3.
+//           everything else: GNU GPL version 2. See License.txt.
+// Copyright: (c) 2007 by Recursion Co., Ltd.
+//            (c) 2021 tickelton@gmail.com
 
 #include <avr/io.h>
 #include <avr/iotn85.h>
@@ -83,11 +81,8 @@ ISR(TIMER1_OVF_vect) {
   key_press |= key_state & i;   // 0->1: key press detect
 }
 
-///////////////////////////////////////////////////////////////////
-//
-// check if a key has been pressed. Each pressed key is reported
-// only once
-//
+// Check if a key has been pressed.
+// Each pressed key is reported only once.
 uint8_t get_key_press(uint8_t key_mask) {
   cli();                  // read and clear atomic !
   key_mask &= key_press;  // read key(s)
@@ -96,10 +91,7 @@ uint8_t get_key_press(uint8_t key_mask) {
   return key_mask;
 }
 
-///////////////////////////////////////////////////////////////////
-//
-// check if a key is pressed right now
-//
+// Check if a key is pressed right now.
 uint8_t get_key_state(uint8_t key_mask)
 
 {
@@ -123,11 +115,11 @@ int main(void) {
   trcnt = 0;
 
   sei();
-  for (;;) { /* main event loop */
+  for (;;) {
     wdt_reset();
     usbPoll();
 
-    /*    device -> host    */
+    // device -> host
     if (usbInterruptIsReady()) {
       if (twcnt != trcnt || sendEmptyFrame) {
         uchar tlen;
@@ -137,14 +129,14 @@ int main(void) {
         usbSetInterrupt((uchar *)tbuf + trcnt, tlen);
         trcnt += tlen;
         trcnt &= TBUF_MSK;
-        /* send an empty block after last data block to indicate transfer end */
+        // Send an empty block after last data block to indicate transfer end.
         sendEmptyFrame = (tlen == 8 && twcnt == trcnt) ? 1 : 0;
       }
     }
 
     report_interrupt();
 
-    /* We need to report rx and tx carrier after open attempt */
+    // We need to report rx and tx carrier after open attempt.
     if (intr3Status != 0 && usbInterruptIsReady3()) {
       static uchar serialStateNotification[10] = {0xa1, 0x20, 0, 0, 0,
                                                   0,    2,    0, 3, 0};
