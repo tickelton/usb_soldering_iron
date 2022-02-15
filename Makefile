@@ -58,4 +58,28 @@ bootloader: config/micronucleus/firmware micronucleus/firmware/
 micronucleus: micronucleus/commandline/
 	@cd micronucleus/commandline && make
 
+tidy:
+	@$(foreach infile,$(wildcard $(SRC)/*.c), clang-tidy \
+		-checks=-*,clang-analyzer-*,bugprone*,google*,misc*,modernize*,performance*,readability*,-*DeprecatedOrUnsafeBufferHandling \
+		$(infile) \
+		-- \
+		|| true \
+		;)
+
+format-diff:
+	@$(foreach infile,$(wildcard $(SRC)/*.c) $(wildcard $(SRC)/*.h), clang-format \
+		--style=Google \
+		$(infile) \
+		| diff -u $(infile) - \
+		|| true \
+		;)
+
+format:
+	@$(foreach infile,$(wildcard $(SRC)/*.c) $(wildcard $(SRC)/*.h), clang-format \
+		-i \
+		--style=Google \
+		$(infile) \
+		|| true \
+		;)
+
 
