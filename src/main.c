@@ -26,10 +26,6 @@
 #define DEBOUNCE_10MS \
   (uint8_t)(int16_t) - (F_CPU / 1024 * 10e-3 + 0.5);  // timer preload for 10ms
 
-#define PWR_STEPS_LEN 4
-const uint8_t pwr_steps[PWR_STEPS_LEN] = {0, 200, 224, 255};
-uint8_t pwr_idx = 0;
-
 volatile uint8_t timer_counter = 0;
 volatile uint8_t key_state;
 volatile uint8_t key_press;
@@ -100,6 +96,12 @@ uint8_t get_key_state(uint8_t key_mask)
 }
 
 int main(void) {
+  pwr_steps[0] = 0;
+  pwr_steps[1] = 200;
+  pwr_steps[2] = 224;
+  pwr_steps[3] = 255;
+  pwr_idx = 0;
+
   wdt_enable(WDTO_1S);
   odDebugInit();
   hardwareInit();
@@ -150,8 +152,11 @@ int main(void) {
     }
 
     if (get_key_press(1 << BUTTON_PIN_NUM)) {
-      ++pwr_idx;
-      pwr_idx = pwr_idx % PWR_STEPS_LEN;
+      cli();
+      if (++pwr_idx >= PWR_STEPS_LEN) {
+        pwr_idx = 0;
+      }
+      sei();
     }
   }
   return 0;

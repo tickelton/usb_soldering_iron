@@ -1,15 +1,33 @@
 usb_soldering_iron
 
+COMMANDS
+--------
 
+------------------------------------------------------
+| ?    | print firmware info                         |
+------------------------------------------------------
+| g    | get current duty cycle value                |
+------------------------------------------------------
+| ## s | set duty cycle value to ##                  |
+|      | where '##' is a hex digit between 01 and FF |
+------------------------------------------------------
 
 EXAMPLE
 -------
 
+$ screen /dev/ttyACM0
+?
+usb_solderin_iron v0.1
+01 s
+g
+01
+ff s
+g
+FF
+00 s
 
-12 DDRB |
-10 PORTB ^
-12 PORTB ^
-PINB ?
+
+
 
 LICENSE
 -------

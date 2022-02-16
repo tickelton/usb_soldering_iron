@@ -147,7 +147,8 @@ uchar usbFunctionWrite(uchar *data, uchar len) {
   return 1;
 }
 
-static uchar tos, val, val2;
+static uchar val;
+static uint8_t got_val = 0;
 static char rbuf[8];
 
 static uchar u2h(uchar u) {
@@ -168,6 +169,21 @@ static void out_char(uchar c) {
 #endif
 }
 
+static uint8_t not_hex_digit(uchar d) {
+  if (d < '0' || d > 'F' || (d > '9' && d < 'A')) {
+    return 1;
+  }
+  return 0;
+}
+
+static void print_syntax_error() {
+  out_char('\r');
+  out_char('\n');
+  out_char('!');
+  out_char('\r');
+  out_char('\n');
+}
+
 void usbFunctionWriteOut(uchar *data, uchar len) {
   /*  postpone receiving next data    */
   usbDisableAllRequests();
@@ -178,6 +194,7 @@ void usbFunctionWriteOut(uchar *data, uchar len) {
 
     //    delimiter?
     c = *data++;
+    out_char(c);
     if (c > 0x20) {
       if ('a' <= c && c <= 'z') c -= 0x20;  //    to upper case
       rbuf[rcnt++] = c;
@@ -189,81 +206,65 @@ void usbFunctionWriteOut(uchar *data, uchar len) {
     //    command
     if (rcnt == 1) {
       const char *ptr;
-      volatile uchar *addr = (uchar *)((unsigned int)tos);
-      uchar x;
 
       switch (rbuf[0]) {
-        case '@':  //    who
+        case '?':  //    who
           ptr = PSTR(CMD_WHO);
+          out_char('\r');
+          out_char('\n');
           while ((c = pgm_read_byte(ptr++)) != 0) {
             out_char(c);
           }
+          out_char('\r');
+          out_char('\n');
           break;
-        case '?':  //    get
-          x = *addr;
-          out_char(u2h(x >> 4));
-          out_char(u2h(x & 0x0f));
+        case 'G':  //    get
+          out_char('\r');
+          out_char('\n');
+          out_char(u2h(pwr_steps[pwr_idx] >> 4));
+          out_char(u2h(pwr_steps[pwr_idx] & 0x0f));
+          out_char('\r');
+          out_char('\n');
           break;
-        case '=':  //    set
+        case 'S':  //    set
+          if (!got_val) {
+            print_syntax_error();
+            rcnt = 0;
+            continue;
+          }
           cli();
-          *addr = val;
+          pwr_steps[PWR_STEPS_LEN] = val;
+          pwr_idx = PWR_STEPS_LEN;
           sei();
-          break;
-        case '$':  //    set twice
-          cli();
-          *addr = val;
-          *addr = val2;
-          sei();
-          break;
-        case '&':  //    and & set
-          cli();
-          *addr &= val;
-          sei();
-          break;
-        case '|':  //    or & set
-          cli();
-          *addr |= val;
-          sei();
-          break;
-        case '^':  //    xor & set
-          cli();
-          *addr ^= val;
-          sei();
+          got_val = 0;
+          out_char('\r');
+          out_char('\n');
           break;
         default:  //    error
-          out_char('!');
+          print_syntax_error();
       }
-      out_char('\r');
-      out_char('\n');
       rcnt = 0;
       continue;
     }
 
     //    number
     if (rcnt == 2) {
-      val2 = val;
-      val = tos;
-      tos = (h2u(rbuf[0]) << 4) | h2u(rbuf[1]);
+      if (not_hex_digit(rbuf[0]) || not_hex_digit(rbuf[1])) {
+        print_syntax_error();
+        rcnt = 0;
+        continue;
+      }
+      val = (h2u(rbuf[0]) << 4) | h2u(rbuf[1]);
+      got_val = 1;
       rcnt = 0;
       continue;
     }
 
-    //    sfr
-    if (rcnt >= 4) {
-      val2 = val;
-      val = tos;
-      tos = 0x30 + ('D' - rbuf[--rcnt]) * 3;
-      rbuf[rcnt] = 0;
-      if (!strcmp_P(rbuf, PSTR("PIN")))
-        tos += 0;
-      else if (!strcmp_P(rbuf, PSTR("DDR")))
-        tos += 1;
-      else if (!strcmp_P(rbuf, PSTR("PORT")))
-        tos += 2;
-      else
-        tos = 0x20;  //    error
+    if (rcnt > 2) {
+      print_syntax_error();
       rcnt = 0;
     }
+
   } while (--len);
 
   usbEnableAllRequests();
