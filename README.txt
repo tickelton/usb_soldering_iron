@@ -1,4 +1,5 @@
 usb_soldering_iron
+------------------
 
 COMMANDS
 --------
@@ -14,6 +15,15 @@ COMMANDS
 
 EXAMPLE
 -------
+
+The below sequence of commands performs the following actions:
+ * connects to the device's virtual COM port using 'screen'
+ * reads the firmware version
+ * sets the duty cycle to 1
+ * reads back the currently active duty cycle value
+ * sets the duty cycle to FF
+ * reads back the currently active duty cycle value
+ * sets the duty cycle to 0 (i.e. turns the soldering iron off)
 
 $ screen /dev/ttyACM0
 ?
